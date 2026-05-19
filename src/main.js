@@ -64,7 +64,6 @@ function drawHand(landmarks) {
     });
 }
 
-// 🌟 الخوارزمية الجديدة: التشتت + التجميع + فرقعة الأصابع
 function trackHandMovement() {
     if (!handLandmarker || webcamElement.readyState !== 4) return;
 
@@ -89,32 +88,27 @@ function trackHandMovement() {
             }
             const avgDistance = totalDistance / 4;
 
-            // 1. التحكم في التشتت والتجميع (Spread vs Close)
-            if (avgDistance > 0.40) {
+            // 🌟 تعديل الحساسية: جعلنا التشتيت أسهل (0.35) والتجميع محكم (0.25)
+            if (avgDistance > 0.35) {
                 isScattered = true;  // اليد مفتوحة = تشتيت
             } else if (avgDistance < 0.25) {
                 isScattered = false; // اليد مغلقة = تجميع ببطء
             }
 
-            // 2. التحكم في فرقعة الأصابع (Thumb & Middle Finger Snap)
             const thumbTip = landmarks[4];
             const middleTip = landmarks[12];
-            // قياس المسافة بين الإبهام والوسطى
             const snapDistance = Math.hypot(thumbTip.x - middleTip.x, thumbTip.y - middleTip.y);
 
-            // إذا تلامس الإبهام والوسطى (الاستعداد للفرقعة)
             if (snapDistance < 0.05) {
                 isSnapping = true;
             } 
-            // إذا افترقا فجأة (تنفيذ الفرقعة)
             else if (snapDistance > 0.10 && isSnapping && !gestureCooldown) {
-                triggerNextState(); // الانتقال للكلمة التالية
+                triggerNextState(); 
                 isSnapping = false;
             }
         }
     }
 }
-
 function generateTextTargets(text) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -209,11 +203,9 @@ function createParticleSystem() {
 function triggerNextState() {
     gestureCooldown = true;
 
-    // إذا لم نصل للكلمة الأخيرة بعد (ننتقل طبيعياً)
     if (currentWordIndex < words.length - 1) {
         currentWordIndex++;
         
-        // انفجار التشتت بين الكلمات
         const positions = particleGeometry.attributes.position.array;
         for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
             positions[i] += (Math.random() - 0.5) * 30; 
@@ -222,18 +214,19 @@ function triggerNextState() {
         generateTextTargets(words[currentWordIndex]);
         setTimeout(() => { gestureCooldown = false; }, 1000);
     } 
-    // 🌟 إذا وصلنا للكلمة الأخيرة واسمك معروض (الخاتمة!)
     else {
-        isEnteringPortal = true; // تفعيل تأثير القفز الفضائي
+        isEnteringPortal = true; 
         console.log("تم تفعيل بوابة القفز الفضائي!");
         
-        // ننتظر ثانية ونصف حتى يستمتع الزائر بمشهد اندفاع الجزيئات ثم نفتح الموقع
         setTimeout(() => {
-            window.location.href = 'https://github.com/abdelwahed-abd';
+            // 🌟 فتح تبويب جديد عبر تمرير '_blank'
+            window.open('https://abdelwahedabdellaoui.pages.dev/', '_blank');
             
-            // إعادة ضبط المشهد في الخلفية أثناء التحميل
-           
-        }, 1500);
+            isEnteringPortal = false;
+            currentWordIndex = 0;
+            generateTextTargets(words[currentWordIndex]);
+            gestureCooldown = false;
+        }, 600);
     }
 }
 function onWindowResize() {
@@ -248,21 +241,19 @@ function animate() {
 
     if (particleGeometry) {
         const positions = particleGeometry.attributes.position.array;
-        const lerpFactor = isScattered ? 0.014 : 0.08;
+        
+        // 🌟 هنا كان الخطأ! الآن التشتيت سريع (0.1) والتجميع بطيء وسينمائي (0.02)
+        const lerpFactor = isScattered ? 0.1 : 0.07;
 
         for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
             
-            // 🌟 الخاتمة: الاندفاع نحو الشاشة (Warp Speed)
             if (isEnteringPortal) {
-                // i % 3 === 2 يعني أننا نعدل محور Z (العمق)
                 if (i % 3 === 2) {
-                    positions[i] += 4.5; // سرعة الاندفاع نحو الكاميرا
+                    positions[i] += 4.5; 
                 } else {
-                    // اهتزاز خفيف جداً في محوري X و Y لتبدو كالنفق
                     positions[i] += (Math.random() - 0.5) * 1.5;
                 }
             } 
-            // الحركة الطبيعية للتشتت أو التجميع
             else {
                 const targetPos = isScattered ? scatterPositions[i] : targetPositions[i];
                 positions[i] += (targetPos - positions[i]) * lerpFactor;
@@ -271,7 +262,6 @@ function animate() {
         
         particleGeometry.attributes.position.needsUpdate = true;
         
-        // إيقاف الدوران أثناء الاندفاع ليكون التركيز على اختراق الشاشة
         if (!isEnteringPortal) {
             particleSystem.rotation.y = Math.sin(Date.now() * 0.0003) * 0.08;
             
@@ -284,7 +274,6 @@ function animate() {
     }
     renderer.render(scene, camera);
 }
-
 async function setupWebcam() {
     if (!webcamElement) return;
     try {
