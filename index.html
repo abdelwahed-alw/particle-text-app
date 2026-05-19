@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abdelwahed - Interactive Particle Portfolio</title>
+    <style>
+        /* جعل الخلفية سوداء تماماً لبروز نقاط الجزيئات المضيئة */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        /* نافذة كاميرا الويب للاختبار (يمكن إخفاؤها لاحقاً بـ display: none) */
+        #webcam {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 240px;
+            border-radius: 10px;
+            transform: scaleX(-1); /* مرآة للفيديو لتسهيل محاكاة حركة اليد */
+            border: 2px solid #333;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <video id="webcam" autoplay playsinline></video>
+
+    <script type="module" src="/src/main.js"></script>
+    
+</body>
+</html>

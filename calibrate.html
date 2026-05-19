@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أداة معايرة حركات اليد 🎯</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #0c0c0c;
+            color: #00ff88;
+            margin: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        .video-container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 640px;
+            height: 480px;
+            transform: scaleX(-1);
+        }
+        canvas {
+            z-index: 10;
+        }
+        .dashboard {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #141414;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #222;
+        }
+        button {
+            padding: 15px;
+            background: #00f3ff;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover {
+            background: #00b8cc;
+            box-shadow: 0 0 15px #00f3ff;
+        }
+        textarea {
+            flex: 1;
+            background: #050505;
+            color: #ff00ff;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 13px;
+            resize: none;
+            min-height: 250px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="video-container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="output_canvas"></canvas>
+    </div>
+
+    <div class="dashboard">
+        <h2>مختبر استخراج الحركات البرمجية 🧪</h2>
+        <p style="color: #aaa;">قم بعمل الحركة بيدك أمام الكاميرا، ثم اضغط على <strong style="color:#fff;">Spacebar</strong> لالتقاط كود الـ JSON.</p>
+        
+        <button id="captureBtn">جاري تحميل الذكاء الاصطناعي... ⏳</button>
+        
+        <label>بيانات الـ JSON المستخرجة:</label>
+        <textarea id="jsonOutput" readonly placeholder="سيظهر كود الإحداثيات هنا بمجرد الضغط على زر الالتقاط..."></textarea>
+    </div>
+
+    <script type="module">
+        // استيراد الموديولات مباشرة عبر كود ESM نظيف متوافق مع معايير 2026
+        import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/+esm";
+
+        const video = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const captureBtn = document.getElementById('captureBtn');
+        const jsonOutput = document.getElementById('jsonOutput');
+
+        let handLandmarker = undefined;
+        let latestLandmarks = null;
+
+        // 1. تشغيل الكاميرا ومعالجة سرعة الاستجابة
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }).then((stream) => {
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                startTracking();
+            };
+        }).catch(err => console.error("فشل الوصول للكاميرا:", err));
+
+        // 2. بناء منظومة التتبع
+        async function startTracking() {
+            canvasElement.width = video.videoWidth;
+            canvasElement.height = video.videoHeight;
+
+            try {
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+                );
+                
+                handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                        delegate: "GPU"
+                    },
+                    runningMode: "VIDEO",
+                    numHands: 1
+                });
+
+                captureBtn.innerText = "المنظومة جاهزة! اضغط للالتقاط";
+                renderLoop();
+            } catch (error) {
+                captureBtn.innerText = "فشل تحميل المحرك ❌";
+                console.error("خطأ في تحميل MediaPipe:", error);
+            }
+        }
+
+        // 3. حلقة الرسم المباشر للنقاط فوق اليد
+        let lastVideoTime = -1;
+        function renderLoop() {
+            if (video.currentTime !== lastVideoTime) {
+                lastVideoTime = video.currentTime;
+                
+                const results = handLandmarker.detectForVideo(video, performance.now());
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                if (results.landmarks && results.landmarks.length > 0) {
+                    latestLandmarks = results.landmarks[0];
+
+                    // رسم النقاط الـ 21 حياً للتأكد من تتبع اليد
+                    for (const landmark of latestLandmarks) {
+                        canvasCtx.beginPath();
+                        canvasCtx.arc(landmark.x * canvasElement.width, landmark.y * canvasElement.height, 5, 0, 2 * Math.PI);
+                        canvasCtx.fillStyle = "#00f3ff";
+                        canvasCtx.fill();
+                    }
+                }
+            }
+            requestAnimationFrame(renderLoop);
+        }
+
+        // 4. التقاط ومعايرة المسافات النسبية للمفاصل
+        function captureGesture() {
+            if (!latestLandmarks) {
+                alert("انتظر حتى تظهر النقاط الزرقاء على يدك ثم اضغط مجدداً!");
+                return;
+            }
+
+            const wrist = latestLandmarks[0];
+            const relativeDistances = latestLandmarks.map((lm, index) => {
+                return {
+                    point: index,
+                    distanceToWrist: parseFloat(Math.hypot(lm.x - wrist.x, lm.y - wrist.y).toFixed(4))
+                };
+            });
+
+            jsonOutput.value = JSON.stringify(relativeDistances, null, 2);
+            jsonOutput.select();
+        }
+
+        captureBtn.addEventListener('click', captureGesture);
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                captureGesture();
+            }
+        });
+    </script>
+</body>
+</html>
