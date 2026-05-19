@@ -10,21 +10,23 @@ const canvasCtx = canvasElement.getContext('2d');
 
 const PARTICLE_COUNT = 15000;
 const targetPositions = new Float32Array(PARTICLE_COUNT * 3);
-// مصفوفة جديدة لحفظ مواقع عشوائية لكي تتشتت إليها الجزيئات
 const scatterPositions = new Float32Array(PARTICLE_COUNT * 3); 
 
-const words = ['VISION', 'LOGIC', 'EXECUTION', "LET'S BUILD", 'ABDELWAHED'];
+const words = ['hide','VISION', 'LOGIC', 'EXECUTION', "LET'S BUILD", 'ABDELWAHED'];
 let currentWordIndex = 0;
 
 let handLandmarker;
 let lastVideoTime = -1;
 let gestureCooldown = false;
+let wordChangeAllowed = true; 
 
-let isEnteringPortal = false; // 🌟 المتغير الجديد الخاص بالخاتمة
+let isScattered = true; 
+let isSnapping = false;  
+let isEnteringPortal = false; 
 
-// متغيرات الحالة الجديدة للتحكم في السيناريو
-let isScattered = true; // هل الجزيئات مشتتة أم متجمعة؟
-let isSnapping = false;  // لتتبع وضع الاستعداد لفرقعة الأصابع
+// 🌟 متغيرات للتحكم الديناميكي في الفضاء
+let targetRotationX = 0;
+let targetRotationY = 0;
 
 const HAND_CONNECTIONS = [
     [0,1], [1,2], [2,3], [3,4], [0,5], [5,6], [6,7], [7,8], 
@@ -65,7 +67,7 @@ function drawHand(landmarks) {
 }
 
 function trackHandMovement() {
-    if (!handLandmarker || webcamElement.readyState !== 4) return;
+    if (!handLandmarker || webcamElement.readyState !== 4 || isEnteringPortal) return;
 
     let startTimeMs = performance.now();
     if (lastVideoTime !== webcamElement.currentTime) {
@@ -88,27 +90,54 @@ function trackHandMovement() {
             }
             const avgDistance = totalDistance / 4;
 
-            // 🌟 تعديل الحساسية: جعلنا التشتيت أسهل (0.35) والتجميع محكم (0.25)
-            if (avgDistance > 0.35) {
-                isScattered = true;  // اليد مفتوحة = تشتيت
-            } else if (avgDistance < 0.25) {
-                isScattered = false; // اليد مغلقة = تجميع ببطء
+            // 1. التجميع (إغلاق اليد)
+            if (avgDistance < 0.24) {
+                isScattered = false; 
+            } 
+            // 2. التشتيت (فتح اليد)
+            else if (avgDistance > 0.36) {
+                isScattered = true; 
+                
+                if (!gestureCooldown) {
+                    gestureCooldown = true; 
+                    currentWordIndex++;
+                    if (currentWordIndex >= words.length) currentWordIndex = 0;
+                    
+                    generateTextTargets(words[currentWordIndex]);
+                    
+                    setTimeout(() => { gestureCooldown = false; }, 1000); 
+                }
+                
+                // تحريك الفضاء مع حركة المعصم
+                targetRotationY = (0.5 - wrist.x) * 1.5; 
+                targetRotationX = (wrist.y - 0.5) * 1.5;
             }
 
+            // 3. فرقعة الأصابع (الانتقال المباشر)
             const thumbTip = landmarks[4];
             const middleTip = landmarks[12];
             const snapDistance = Math.hypot(thumbTip.x - middleTip.x, thumbTip.y - middleTip.y);
 
-            if (snapDistance < 0.05) {
-                isSnapping = true;
-            } 
-            else if (snapDistance > 0.10 && isSnapping && !gestureCooldown) {
-                triggerNextState(); 
-                isSnapping = false;
+            if (snapDistance < 0.045 && !gestureCooldown) {
+                startPortalTransition(); 
             }
         }
     }
 }
+
+// 🌟 الدالة المعدلة: التوجيه المباشر بدون أزرار
+function startPortalTransition() {
+    gestureCooldown = true;
+    isEnteringPortal = true; 
+    console.log("تم تفعيل القفز الفضائي! جاري التوجيه...");
+    
+    // الانتظار 1.5 ثانية للاستمتاع باندفاع الجزيئات نحو الشاشة
+    setTimeout(() => {
+        // 🌟 التوجيه التلقائي المباشر لنفس النافذة (لتجنب حظر النوافذ المنبثقة قدر الإمكان)
+        window.location.href = 'https://abdelwahedabdellaoui.pages.dev/';
+    }, 1500);
+}
+
 function generateTextTargets(text) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -143,16 +172,12 @@ function generateTextTargets(text) {
     }
 }
 
-// 🌟 دالة لإنشاء شكل الكرة (دائرة مضيئة) للجزيئات بدلاً من المربع الافتراضي
 function createCircleTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
+    canvas.width = 32; canvas.height = 32;
     const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-    ctx.arc(16, 16, 14, 0, Math.PI * 2); // رسم دائرة مثالية
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(16, 16, 14, 0, Math.PI * 2); 
+    ctx.fillStyle = '#ffffff'; ctx.fill();
     return new THREE.CanvasTexture(canvas);
 }
 
@@ -160,75 +185,28 @@ function createParticleSystem() {
     particleGeometry = new THREE.BufferGeometry();
     const initialPositions = new Float32Array(PARTICLE_COUNT * 3);
     
-    // 🌟 السحر هنا: توزيع الجزيئات على شكل كرة ثلاثية الأبعاد (مجرة)
     for (let i = 0; i < PARTICLE_COUNT * 3; i += 3) {
-        
-        // إحداثيات كروية (Spherical Coordinates)
-        const radius = 180 * Math.cbrt(Math.random()); // نصف قطر الكرة
+        const radius = 180 * Math.cbrt(Math.random()); 
         const theta = Math.random() * 2 * Math.PI;
         const phi = Math.acos(2 * Math.random() - 1);
         
-        // تحويلها إلى X, Y, Z لمواقع التشتت
         const x = radius * Math.sin(phi) * Math.cos(theta);
         const y = radius * Math.sin(phi) * Math.sin(theta);
         const z = radius * Math.cos(phi);
 
-        // المواضع الأولية لحظة تحميل الصفحة
-        initialPositions[i] = x;
-        initialPositions[i+1] = y;
-        initialPositions[i+2] = z;
-
-        // مواقع التشتت الدائمة (التي تعود إليها الكريات عند فتح اليد)
-        scatterPositions[i] = x;
-        scatterPositions[i+1] = y;
-        scatterPositions[i+2] = z;
+        initialPositions[i] = x; initialPositions[i+1] = y; initialPositions[i+2] = z;
+        scatterPositions[i] = x; scatterPositions[i+1] = y; scatterPositions[i+2] = z;
     }
     
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(initialPositions, 3));
-    
     const particleMaterial = new THREE.PointsMaterial({
-        color: 0x00f3ff, 
-        size: 0.45, 
-        map: createCircleTexture(), 
-        transparent: true, 
-        opacity: 0.9, 
-        alphaTest: 0.1, 
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
+        color: 0x00f3ff, size: 0.45, map: createCircleTexture(), transparent: true, opacity: 0.9, alphaTest: 0.1, blending: THREE.AdditiveBlending, depthWrite: false
     });
     
     particleSystem = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particleSystem);
 }
-function triggerNextState() {
-    gestureCooldown = true;
 
-    if (currentWordIndex < words.length - 1) {
-        currentWordIndex++;
-        
-        const positions = particleGeometry.attributes.position.array;
-        for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
-            positions[i] += (Math.random() - 0.5) * 30; 
-        }
-        
-        generateTextTargets(words[currentWordIndex]);
-        setTimeout(() => { gestureCooldown = false; }, 1000);
-    } 
-    else {
-        isEnteringPortal = true; 
-        console.log("تم تفعيل بوابة القفز الفضائي!");
-        
-        setTimeout(() => {
-            // 🌟 فتح تبويب جديد عبر تمرير '_blank'
-            window.open('https://abdelwahedabdellaoui.pages.dev/', '_blank');
-            
-            isEnteringPortal = false;
-            currentWordIndex = 0;
-            generateTextTargets(words[currentWordIndex]);
-            gestureCooldown = false;
-        }, 600);
-    }
-}
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -241,18 +219,12 @@ function animate() {
 
     if (particleGeometry) {
         const positions = particleGeometry.attributes.position.array;
-        
-        // 🌟 هنا كان الخطأ! الآن التشتيت سريع (0.1) والتجميع بطيء وسينمائي (0.02)
         const lerpFactor = isScattered ? 0.1 : 0.07;
 
         for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
-            
             if (isEnteringPortal) {
-                if (i % 3 === 2) {
-                    positions[i] += 4.5; 
-                } else {
-                    positions[i] += (Math.random() - 0.5) * 1.5;
-                }
+                if (i % 3 === 2) { positions[i] += 4.5; } 
+                else { positions[i] += (Math.random() - 0.5) * 1.5; }
             } 
             else {
                 const targetPos = isScattered ? scatterPositions[i] : targetPositions[i];
@@ -263,32 +235,30 @@ function animate() {
         particleGeometry.attributes.position.needsUpdate = true;
         
         if (!isEnteringPortal) {
-            particleSystem.rotation.y = Math.sin(Date.now() * 0.0003) * 0.08;
-            
             if (isScattered) {
+                particleSystem.rotation.y += (targetRotationY - particleSystem.rotation.y) * 0.05;
+                particleSystem.rotation.x += (targetRotationX - particleSystem.rotation.x) * 0.05;
                 particleSystem.rotation.z += 0.002; 
             } else {
+                particleSystem.rotation.y += (Math.sin(Date.now() * 0.0003) * 0.08 - particleSystem.rotation.y) * 0.05;
+                particleSystem.rotation.x += (0 - particleSystem.rotation.x) * 0.05;
                 particleSystem.rotation.z += (0 - particleSystem.rotation.z) * 0.05;
             }
         }
     }
     renderer.render(scene, camera);
 }
+
 async function setupWebcam() {
     if (!webcamElement) return;
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        webcamElement.srcObject = stream;
-    } catch (err) { console.error(err); }
+    try { const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }); webcamElement.srcObject = stream; } 
+    catch (err) { console.error(err); }
 }
 
 async function initMediaPipe() {
     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm");
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-            delegate: "GPU"
-        },
+        baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", delegate: "GPU" },
         runningMode: "VIDEO", numHands: 1
     });
 }
