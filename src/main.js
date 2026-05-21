@@ -64,9 +64,9 @@ function drawHand(landmarks) {
     });
 
     landmarks.forEach(lm => {
-        canvasCtx.beginPath();
+         canvasCtx.beginPath();
         canvasCtx.arc(lm.x * canvasElement.width, lm.y * canvasElement.height, 3, 0, 2 * Math.PI);
-        canvasCtx.fill();
+         canvasCtx.fill();
     });
 }
 
@@ -78,31 +78,31 @@ function trackHandMovement() {
 
     let startTimeMs = performance.now();
     if (lastVideoTime !== webcamElement.currentTime) {
-        lastVideoTime = webcamElement.currentTime;
+    lastVideoTime = webcamElement.currentTime;
         const detections = handLandmarker.detectForVideo(webcamElement, startTimeMs);
 
-        canvasElement.width = webcamElement.videoWidth;
-        canvasElement.height = webcamElement.videoHeight;
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    canvasElement.width = webcamElement.videoWidth;
+    canvasElement.height = webcamElement.videoHeight;
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
         if (detections.landmarks && detections.landmarks.length > 0) {
             isHandVisible = true;
             const landmarks = detections.landmarks[0];
-            drawHand(landmarks);
+             drawHand(landmarks);
 
             const wrist = landmarks[0];
 
-            handX_3D = (wrist.x - 0.5) * -160;
-            handY_3D = -(wrist.y - 0.5) * 120;
+             handX_3D = (wrist.x - 0.5) * -160;
+             handY_3D = -(wrist.y - 0.5) * 120;
 
             const tips = [landmarks[8], landmarks[12], landmarks[16], landmarks[20]];
-            let totalDistance = 0;
-            for (let tip of tips) {
+              let totalDistance = 0;
+             for (let tip of tips) {
                 totalDistance += Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
             }
             const avgDistance = totalDistance / 4;
 
-            if (avgDistance < 0.24) {
+              if (avgDistance < 0.24) {
                 isScattered = false;
             }
             else if (avgDistance > 0.36) {
@@ -157,7 +157,7 @@ function startPortalTransition() {
         isEnteringPortal = false;
         isScattered = true;
         gestureCooldown = false;
-    }, 1500);
+    }, 800);
 }
 
 function generateTextTargets(text) {
