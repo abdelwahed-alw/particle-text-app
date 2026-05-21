@@ -65,7 +65,7 @@ function drawHand(landmarks) {
 
     landmarks.forEach(lm => {
          canvasCtx.beginPath();
-        canvasCtx.arc(lm.x * canvasElement.width, lm.y * canvasElement.height, 3, 0, 2 * Math.PI);
+          canvasCtx.arc(lm.x * canvasElement.width, lm.y * canvasElement.height, 3, 0, 2 * Math.PI);
          canvasCtx.fill();
     });
 }
@@ -89,7 +89,7 @@ function trackHandMovement() {
             isHandVisible = true;
             const landmarks = detections.landmarks[0];
              drawHand(landmarks);
-
+// J
             const wrist = landmarks[0];
 
              handX_3D = (wrist.x - 0.5) * -160;
