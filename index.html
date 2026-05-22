@@ -4,28 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Abdelwahed - Interactive Portfolio</title>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
-        canvas { display: block; }
-        
-        /* حاوية الكاميرا والرسم معاً */
-        #video-container {
-            position: absolute; bottom: 20px; left: 20px; 
-            width: 240px; height: 180px;
-            border-radius: 10px; border: 2px solid #333; 
-            z-index: 10; overflow: hidden;
-            background: #000;
-        }
-
-        /* الفيديو واللوحة الشفافة يتطابقان كلياً ومقلوبان كالمرآة */
-        #webcam, #output_canvas {
-            position: absolute; top: 0; left: 0; 
-            width: 100%; height: 100%;
-            transform: scaleX(-1);
-            object-fit: cover;
-        }
-    </style>
-
+    
+    <link rel="stylesheet" href="/src/style.css">
+    
     <script type="importmap">
         {
             "imports": {
@@ -34,17 +15,185 @@
             }
         }
     </script>
-
 </head>
 <body>
 
-    <div id="video-container">
-        <video id="webcam" autoplay playsinline></video>
-        <!-- اللوحة الشفافة التي سنرسم عليها الخطوط الزرقاء -->
-        <canvas id="output_canvas"></canvas> 
-        <button id="portalBtn" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 15px 40px; font-size: 24px; font-weight: bold; color: #000; background-color: #00f3ff; border: none; border-radius: 5px; cursor: pointer; z-index: 100; box-shadow: 0 0 30px #00f3ff; transition: 0.3s;">ENTER PORTAL</button>
+    <!-- Holographic Background Noise/Overlay -->
+    <div class="hud-scanlines"></div>
+    <div class="hud-vignette"></div>
+
+    <!-- Futuristic Top HUD Header -->
+    <header class="hud-header">
+        <div class="hud-header-left">
+            <div class="glowing-dot pulse"></div>
+            <span class="hud-brand">ABDELWAHED // NEURAL_PORTAL v2.6</span>
+        </div>
+        <div class="hud-header-center">
+            <span class="hud-main-title">INTERACTIVE PORTFOLIO</span>
+        </div>
+        <div class="hud-header-right">
+            <span class="hud-status-label">SYS_STATUS:</span>
+            <span id="system-status" class="hud-status-val status-scanning">INITIALIZING...</span>
+        </div>
+    </header>
+
+    <!-- Floating Telemetry Left Panel -->
+    <div class="hud-panel hud-panel-left" id="panel-telemetry">
+        <div class="hud-panel-header">
+            <span class="hud-panel-title">// CORE_TELEMETRY</span>
+            <span class="hud-panel-id">[01-A]</span>
+        </div>
+        <div class="hud-panel-content">
+            <div class="telemetry-item">
+                <span class="tel-label">ACTIVE_WORD:</span>
+                <span id="hud-active-word" class="tel-val text-neon-cyan">VISION</span>
+            </div>
+            <div class="telemetry-item">
+                <span class="tel-label">PARTICLE_QTY:</span>
+                <span class="tel-val">15,000</span>
+            </div>
+            <div class="telemetry-item">
+                <span class="tel-label">GRAVITY_FIELD:</span>
+                <span id="hud-gravity" class="tel-val">STABLE (0.00G)</span>
+            </div>
+            <div class="telemetry-item">
+                <span class="tel-label">GESTURE_COOLDOWN:</span>
+                <span id="hud-cooldown" class="tel-val text-inactive">OFF</span>
+            </div>
+            <div class="telemetry-item">
+                <span class="tel-label">PORTAL_GAIN:</span>
+                <span id="hud-portal-gain" class="tel-val text-inactive">0.0%</span>
+            </div>
+            
+            <div class="system-radar">
+                <div class="radar-circle">
+                    <div class="radar-sweep"></div>
+                    <div id="radar-blip" class="radar-blip"></div>
+                </div>
+                <div class="radar-stats">
+                    <div class="radar-stat-row"><span>FRQ // 90.2MHz</span></div>
+                    <div class="radar-stat-row"><span>SENS // COMPLIANT</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="hud-panel-footer"></div>
     </div>
- <script type="module" src="/src/main.js"></script>t>
+
+    <!-- Floating Gesture Guide Right Panel -->
+    <div class="hud-panel hud-panel-right" id="panel-controls">
+        <div class="hud-panel-header">
+            <span class="hud-panel-title">// NEURAL_GESTURES</span>
+            <span class="hud-panel-id">[02-B]</span>
+        </div>
+        <div class="hud-panel-content">
+            <p class="panel-instructions">Control the particles using your hand. Hold your hand in front of the camera.</p>
+            
+            <div class="gesture-card" id="gesture-assemble">
+                <div class="gesture-icon">✊</div>
+                <div class="gesture-details">
+                    <span class="gesture-name">CLOSE HAND (FIST)</span>
+                    <span class="gesture-desc">Assemble particles into the glowing word</span>
+                </div>
+            </div>
+            
+            <div class="gesture-card" id="gesture-scatter">
+                <div class="gesture-icon">🖐️</div>
+                <div class="gesture-details">
+                    <span class="gesture-name">OPEN HAND</span>
+                    <span class="gesture-desc">Scatter particles &amp; tilt the viewport with movement</span>
+                </div>
+            </div>
+            
+            <div class="gesture-card" id="gesture-snap">
+                <div class="gesture-icon">🤌</div>
+                <div class="gesture-details">
+                    <span class="gesture-name">PINCH &amp; HOLD</span>
+                    <span class="gesture-desc">Bring thumb &amp; middle finger together to warp</span>
+                </div>
+            </div>
+        </div>
+        <div class="hud-panel-footer"></div>
+    </div>
+
+    <!-- Hovering Start Instruction / System Welcome -->
+    <div id="welcome-prompt" class="welcome-overlay">
+        <div class="welcome-card">
+            <div class="corner-tl"></div><div class="corner-tr"></div>
+            <div class="corner-bl"></div><div class="corner-br"></div>
+            <h2>NEURAL INTERACTIVE CANVAS</h2>
+            <p class="welcome-sub">Created by Abdelwahed Abdellaoui</p>
+            <div class="welcome-divider"></div>
+            <p class="welcome-instructions-main">
+                This experience uses <strong>Hand Gesture Recognition</strong> to control 15,000 intelligent particles.
+            </p>
+            <div class="welcome-feature-list">
+                <div class="welcome-feature"><span>🖐️</span> Open hand to scatter and rotate the view</div>
+                <div class="welcome-feature"><span>✊</span> Close hand (fist) to assemble the words</div>
+                <div class="welcome-feature"><span>🤌</span> Pinch thumb and middle finger to warp to the portfolio</div>
+            </div>
+            <button id="start-btn" class="welcome-btn">INITIALIZE CORE SYSTEM</button>
+        </div>
+    </div>
+
+    <!-- Interactive Bottom Center Help Hint -->
+    <div id="interaction-hint" class="hud-hint">
+        <span class="hint-brackets">[</span>
+        <span id="hint-text">RAISE YOUR HAND TO BEGIN INTERACTION</span>
+        <span class="hint-brackets">]</span>
+    </div>
+
+    <!-- Webcam Window styled as Hologram Feed -->
+    <div id="video-container" class="hologram-feed">
+        <div class="corner-tl"></div><div class="corner-tr"></div>
+        <div class="corner-bl"></div><div class="corner-br"></div>
+        
+        <div class="feed-header">
+            <span class="feed-title">CAM_FEED // DEV_TRACKER</span>
+            <span id="feed-status" class="feed-status">OFFLINE</span>
+        </div>
+        
+        <div class="video-wrapper">
+            <video id="webcam" autoplay playsinline></video>
+            <!-- Overlay Canvas for Hand landmarks -->
+            <canvas id="output_canvas"></canvas> 
+            <div class="webcam-overlay-grid"></div>
+            <div class="webcam-scanline"></div>
+        </div>
+        
+        <div class="feed-footer">
+            <span>RES: 640x480</span>
+            <span id="fps-counter">FPS: 00</span>
+        </div>
+    </div>
+
+    <!-- Full-screen Portal Jump Visual Overlay -->
+    <div id="portal-overlay" class="portal-overlay">
+        <div class="portal-warp-effect"></div>
+        <div class="portal-content">
+            <div class="portal-spinner-container">
+                <div class="portal-ring ring-outer"></div>
+                <div class="portal-ring ring-middle"></div>
+                <div class="portal-ring ring-inner"></div>
+                <div class="portal-core">🤌</div>
+            </div>
+            
+            <h1 class="portal-title">WARP GATES ENGAGED</h1>
+            <p class="portal-subtitle">PREPARING PORTAL JUMP TO ABDELWAHED'S PORTFOLIO</p>
+            
+            <div class="portal-progress-bar">
+                <div id="portal-progress" class="portal-progress"></div>
+            </div>
+            
+            <div class="portal-actions">
+                <button id="portal-btn" class="portal-action-btn">EXECUTE WARP JUMP</button>
+                <button id="cancel-portal-btn" class="portal-cancel-btn">ABORT WARP</button>
+            </div>
+            
+            <p class="portal-footnote">If the pop-up doesn't open, use the manual execute warp button above.</p>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
     
 </body>
 </html>
